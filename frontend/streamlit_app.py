@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configuration
+# Configuration - Railway automatically sets the backend URL
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
 
 # Page configuration
@@ -152,10 +152,18 @@ st.markdown("""
     hr {
         border-top: 1px solid #3b3b50;
     }
+
+    /* Deployment info */
+    .deployment-info {
+        background: #1a1a2e;
+        border: 1px solid #16213e;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+        color: #e2e8f0;
+    }
 </style>
 """, unsafe_allow_html=True)
-
-
 
 def check_backend_status():
     """Check if backend is running"""
@@ -223,6 +231,16 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# Deployment info
+if "railway" in BACKEND_URL.lower() or "render" in BACKEND_URL.lower() or "fly" in BACKEND_URL.lower():
+    st.markdown(f"""
+    <div class="deployment-info">
+        <h4>🚀 Deployment Status</h4>
+        <p><strong>Backend URL:</strong> {BACKEND_URL}</p>
+        <p><strong>Status:</strong> {'🟢 Live on Cloud' if check_backend_status() else '🔴 Backend Unavailable'}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
 # Sidebar
 with st.sidebar:
     st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
@@ -235,7 +253,10 @@ with st.sidebar:
         st.markdown('<div class="status-indicator status-online">✅ Backend Online</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="status-indicator status-offline">❌ Backend Offline</div>', unsafe_allow_html=True)
-        st.error("Please ensure the backend server is running on port 8000")
+        if "localhost" in BACKEND_URL:
+            st.error("Please ensure the backend server is running on port 8000")
+        else:
+            st.error("Cloud backend is not responding. Please check deployment.")
     
     st.header("📊 Quick Actions")
     
@@ -349,14 +370,18 @@ if backend_online:
         st.rerun()
 
 else:
-    st.error("🚫 Backend server is not available. Please start the backend server first.")
-    st.info("Run: `uvicorn backend.main:app --reload` in your terminal")
+    st.error("🚫 Backend server is not available.")
+    if "localhost" in BACKEND_URL:
+        st.info("For local development, run: `python run_backend.py` in your terminal")
+    else:
+        st.info("Please check your cloud deployment status and logs.")
 
 # Footer
 st.markdown("---")
-st.markdown("""
+st.markdown(f"""
 <div style="text-align: center; color: #666; padding: 1rem;">
     <p>🤖 AI Calendar Booking Assistant | Built with FastAPI, Streamlit & LangGraph</p>
     <p>💡 Ask me to check availability, book meetings, or view your calendar!</p>
+    <p><small>Backend: {BACKEND_URL}</small></p>
 </div>
 """, unsafe_allow_html=True)
