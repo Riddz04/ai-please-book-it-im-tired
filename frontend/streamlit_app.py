@@ -21,6 +21,7 @@ st.set_page_config(
 # Custom CSS for better styling
 st.markdown("""
 <style>
+    /* Header */
     .main-header {
         background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
         padding: 2rem;
@@ -28,8 +29,10 @@ st.markdown("""
         color: #fff;
         text-align: center;
         margin-bottom: 2rem;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
 
+    /* Chat bubbles */
     .chat-container {
         background: #1e1e2f;
         border-radius: 10px;
@@ -56,20 +59,23 @@ st.markdown("""
         border-left: 5px solid #a855f7;
     }
 
+    /* Sidebar layout */
     .sidebar-content {
-        background: #2b2b3c;
+        background: #1c1c2e;
         color: #ffffff;
-        padding: 1rem;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid #2f2f45;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
 
     .status-indicator {
-        padding: 0.5rem;
-        border-radius: 5px;
-        margin: 0.5rem 0;
+        padding: 0.6rem;
+        border-radius: 8px;
+        margin: 0.75rem 0;
         text-align: center;
-        font-weight: bold;
+        font-weight: 600;
+        font-size: 0.95rem;
     }
 
     .status-online {
@@ -84,6 +90,7 @@ st.markdown("""
         border: 1px solid #f87171;
     }
 
+    /* Chat input */
     .stChatInput input {
         background-color: #1e1e2f !important;
         color: #ffffff !important;
@@ -96,25 +103,58 @@ st.markdown("""
         color: #9ca3af;
     }
 
+    /* Buttons */
     .stButton>button {
-        background-color: #4f46e5 !important;
+        background-color: #6366f1 !important;
         color: white !important;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-weight: bold;
+        border-radius: 10px;
+        padding: 0.65rem 1.2rem;
+        font-weight: 600;
         border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.2s ease-in-out;
     }
 
     .stButton>button:hover {
-        background-color: #4338ca !important;
-        color: white !important;
+        background-color: #4f46e5 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.2);
     }
 
+    /* Date pickers */
+    .stDateInput>div>input {
+        background-color: #2e2e42;
+        color: #fff;
+        border-radius: 6px;
+        padding: 0.4rem 0.6rem;
+        border: 1px solid #4b5563;
+    }
+
+    .stDateInput>label {
+        font-weight: 500;
+        font-size: 0.9rem;
+        color: #e5e7eb;
+    }
+
+    /* Markdown and form elements */
     .stMarkdown, .stTextInput, .stDateInput label {
         color: white;
+        font-size: 0.95rem;
+    }
+
+    .stSubheader {
+        margin-top: 1.5rem !important;
+        margin-bottom: 0.5rem !important;
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+
+    hr {
+        border-top: 1px solid #3b3b50;
     }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 def check_backend_status():
