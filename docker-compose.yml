@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  ai-booking-app:
+    build: .
+    ports:
+      - "8000:8000"  # FastAPI backend
+      - "8501:8501"  # Streamlit frontend
+    environment:
+      - GOOGLE_SERVICE_ACCOUNT_FILE=/app/service-account-key.json
+      - GOOGLE_CALENDAR_ID=${GOOGLE_CALENDAR_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - BACKEND_URL=http://localhost:8000
+    volumes:
+      - ./service-account-key.json:/app/service-account-key.json:ro
+    restart: unless-stopped
