@@ -1,4 +1,7 @@
 import os
+import base64
+import json
+import tempfile
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import pytz
@@ -31,13 +34,46 @@ class CalendarService:
         
     def _authenticate(self):
         """Authenticate with Google Calendar API using service account"""
-        if not os.path.exists(self.service_account_file):
-            raise FileNotFoundError(f"Service account file not found: {self.service_account_file}")
         
         if not self.calendar_id:
             raise ValueError("GOOGLE_CALENDAR_ID not set in environment variables")
         
+        # Try base64 environment variable first (for Railway deployment)
+        service_account_b64 = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON_BASE64')
+        if service_account_b64:
+            try:
+                print("🔑 Using base64 service account from environment variable")
+                # Decode base64 and create temporary file
+                service_account_json = base64.b64decode(service_account_b64).decode('utf-8')
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                    f.write(service_account_json)
+                    temp_file_path = f.name
+                
+                credentials = service_account.Credentials.from_service_account_file(
+                    temp_file_path,
+                    scopes=['https://www.googleapis.com/auth/calendar']
+                )
+                
+                # Clean up temp file
+                os.unlink(temp_file_path)
+                
+                service = build('calendar', 'v3', credentials=credentials)
+                
+                # Test the connection
+                service.calendars().get(calendarId=self.calendar_id).execute()
+                
+                return service
+                
+            except Exception as e:
+                print(f"❌ Failed to use base64 service account: {e}")
+                # Fall through to file method
+        
+        # Fallback to file method
+        if not os.path.exists(self.service_account_file):
+            raise FileNotFoundError(f"Service account file not found: {self.service_account_file}. Set GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 environment variable or place file at {self.service_account_file}")
+        
         try:
+            print(f"🔑 Using service account file: {self.service_account_file}")
             credentials = service_account.Credentials.from_service_account_file(
                 self.service_account_file,
                 scopes=['https://www.googleapis.com/auth/calendar']
@@ -210,8 +246,8 @@ class CalendarService:
                 },
             }
             
-            if email and self.is_available:
-                event['attendees'] = [{'email': email}]
+            if attendee_email and self.is_available:
+                event['attendees'] = [{'email': attendee_email}]
             else:
                 event['attendees'] = []  # Skip if demo mode or not supported
 

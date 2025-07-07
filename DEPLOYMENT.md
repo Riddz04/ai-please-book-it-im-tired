@@ -20,12 +20,18 @@ Before deploying, ensure you have:
 
 ### Step 1: Prepare Your Repository
 
-1. **Push to GitHub**:
+1. **Add service account file to your repository**:
 ```bash
-git add .
-git commit -m "Prepare for Railway deployment"
+# Copy your service account file to the project root
+cp /path/to/your/service-account-key.json ./service-account-key.json
+
+# Add to git (be careful with sensitive files!)
+git add service-account-key.json
+git commit -m "Add service account key for deployment"
 git push origin main
 ```
+
+**⚠️ Security Note**: Only do this for deployment. For production, consider using Railway's secret management or environment variables.
 
 ### Step 2: Deploy to Railway
 
@@ -37,7 +43,7 @@ git push origin main
 
 ### Step 3: Configure Environment Variables
 
-In your Railway dashboard, go to **Variables** and add:
+In your Railway dashboard, go to **Variables** tab and add:
 
 ```env
 # Required: Choose one LLM provider
@@ -52,11 +58,25 @@ GOOGLE_API_KEY=your-google-api-key
 OPENAI_API_KEY=your-openai-api-key
 ```
 
-### Step 4: Upload Service Account Key
+### Step 4: Alternative - Use Environment Variable for Service Account
 
-1. In Railway dashboard, go to **Settings** → **Environment**
-2. **Upload Files** → Select your `service-account-key.json`
-3. The file will be available at `./service-account-key.json` in the container
+If you prefer not to commit the file, you can use an environment variable:
+
+1. **Convert JSON to base64**:
+```bash
+# On Mac/Linux:
+base64 -i service-account-key.json
+
+# On Windows:
+certutil -encode service-account-key.json temp.b64 && findstr /v /c:- temp.b64
+```
+
+2. **Add to Railway Variables**:
+```env
+GOOGLE_SERVICE_ACCOUNT_JSON_BASE64=your-base64-encoded-json-here
+```
+
+3. **Update the backend code** to handle base64 (I'll show this in the next step)
 
 ### Step 5: Deploy
 
@@ -66,49 +86,80 @@ OPENAI_API_KEY=your-openai-api-key
 
 ## 🌐 Accessing Your Application
 
-After deployment, you'll get a URL like: `https://your-app-name.up.railway.app`
+After deployment, Railway provides a single URL that serves both services:
 
-- **Frontend (Streamlit)**: `https://your-app-name.up.railway.app:8501`
-- **Backend (FastAPI)**: `https://your-app-name.up.railway.app:8000`
+- **Your App**: `https://your-app-name.up.railway.app` (Streamlit frontend on port 8501)
+- **API Backend**: `https://your-app-name.up.railway.app:8000` (FastAPI backend)
 - **API Docs**: `https://your-app-name.up.railway.app:8000/docs`
 
-## 🔧 Post-Deployment Configuration
+## 🔧 Alternative: Base64 Environment Variable Method
 
-### Update Frontend Backend URL
+If you used the base64 method, here's how to update your backend:
 
-The frontend needs to know your backend URL. Railway automatically sets this via the `BACKEND_URL` environment variable in `railway.toml`.
+1. **Update `backend/services/calendar_service.py`**:
+```python
+import base64
+import json
+import tempfile
 
-### Test Your Deployment
-
-1. **Visit your frontend URL**
-2. **Check system status** in the sidebar
-3. **Try example prompts**:
-   - "Check my availability this week"
-   - "Book a meeting tomorrow at 2 PM"
+def _authenticate(self):
+    """Authenticate with Google Calendar API using service account"""
+    
+    # Try base64 environment variable first
+    service_account_b64 = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON_BASE64')
+    if service_account_b64:
+        try:
+            # Decode base64 and create temporary file
+            service_account_json = base64.b64decode(service_account_b64).decode('utf-8')
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                f.write(service_account_json)
+                temp_file_path = f.name
+            
+            credentials = service_account.Credentials.from_service_account_file(
+                temp_file_path,
+                scopes=['https://www.googleapis.com/auth/calendar']
+            )
+            
+            # Clean up temp file
+            os.unlink(temp_file_path)
+            
+        except Exception as e:
+            raise ValueError(f"Failed to decode service account from base64: {e}")
+    
+    # Fallback to file method
+    elif os.path.exists(self.service_account_file):
+        credentials = service_account.Credentials.from_service_account_file(
+            self.service_account_file,
+            scopes=['https://www.googleapis.com/auth/calendar']
+        )
+    else:
+        raise FileNotFoundError(f"Service account not found. Set GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 or place file at {self.service_account_file}")
+```
 
 ## 🐛 Troubleshooting
 
 ### Common Issues:
 
 1. **Backend Offline**:
-   - Check Railway logs for errors
-   - Verify API keys are set correctly
-   - Ensure service account file is uploaded
+   - Check Railway **Deployments** → **View Logs**
+   - Verify API keys are set correctly in **Variables** tab
+   - Ensure service account file exists or base64 is set
 
 2. **Calendar Not Working**:
-   - Verify `GOOGLE_CALENDAR_ID` is correct
-   - Check service account has calendar access
-   - Ensure Calendar API is enabled in Google Cloud
+   - Verify `GOOGLE_CALENDAR_ID` is your actual calendar ID
+   - Check service account has calendar access (share calendar with service account email)
+   - Ensure Calendar API is enabled in Google Cloud Console
 
 3. **LLM Errors**:
    - Verify API key is valid and has quota
-   - Try switching to Groq (free) if using paid services
+   - Try Groq first (completely free)
    - Check Railway logs for specific error messages
 
-### View Logs:
-```bash
-# In Railway dashboard, go to Deployments → View Logs
-```
+### View Railway Logs:
+1. Go to your Railway project dashboard
+2. Click **Deployments** tab
+3. Click on latest deployment
+4. Click **View Logs**
 
 ## 💰 Cost Estimation
 
@@ -140,19 +191,31 @@ git push origin main
 
 1. **Use Groq for cost-effective LLM** (completely free)
 2. **Monitor Railway usage** in dashboard
-3. **Set up custom domain** in Railway settings
-4. **Enable Railway's built-in monitoring**
-5. **Use environment-specific configs** for staging/production
+3. **Set up custom domain** in Railway settings if needed
+4. **Use Railway's built-in monitoring**
+5. **Keep service account file secure** (consider base64 method for production)
 
 ## 📞 Support
 
 If you encounter issues:
 
-1. **Check Railway logs** first
+1. **Check Railway logs** in Deployments tab
 2. **Review this deployment guide**
 3. **Check the main README.md** for setup details
-4. **Open an issue** on GitHub if problems persist
+4. **Test locally first** with `python run_backend.py`
 
 ---
 
 **🎉 Congratulations!** Your AI Calendar Booking Assistant is now live on Railway!
+
+### Quick Test Commands:
+
+```bash
+# Test your deployed backend
+curl https://your-app-name.up.railway.app:8000/
+
+# Test chat endpoint
+curl -X POST https://your-app-name.up.railway.app:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, can you check my availability?"}'
+```
